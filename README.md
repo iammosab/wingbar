@@ -220,7 +220,9 @@ its output are read.
 > `"raw": true`, line 1 is shown as it is and no other lines are read.
 
 The catalog widgets in [`catalog/`](catalog) are plain bash and make good
-starting points.
+starting points. More widgets, with richer menus (GitHub Actions, Claude usage,
+ClickUp, memory, network, mic, prayer times), are in
+[wingbar-widgets](https://github.com/iammosab/wingbar-widgets).
 
 ## Settings
 

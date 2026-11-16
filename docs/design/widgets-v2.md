@@ -13,8 +13,9 @@ Status: agreed design (2026-11-12). The source of truth for the 0.3 work.
 3. **Own settings file.** `~/.config/wingbar/config.json` (format version 2) holds every
    widget and option. A simple-bar user's `.simplebarrc` is imported once; after
    that wingbar never reads it again.
-4. **Built-in menus.** A widget script can print menu lines; wingbar shows them as a
-   native menu. BarPopover stays supported, but is optional.
+4. **Built-in menus.** A widget script can print menu lines; wingbar shows them
+   in the bar's colours, hanging from the wing (0.3.3; `theme.menus: "native"`
+   for a macOS menu). BarPopover stays supported, but is optional.
 5. **No regression.** After importing the current owner's `.simplebarrc`, the bar looks
    and behaves exactly as 0.2.0 does with the same file (snapshot-identical).
 

@@ -36,6 +36,18 @@ pub struct Theme {
     pub named: HashMap<String, Rgba>,
     /// The icons built-in widgets draw with (`theme.icons`).
     pub icons: IconSet,
+    /// How widget menus are drawn (`theme.menus`).
+    pub menus: MenuStyle,
+}
+
+/// `theme.menus`: how a widget's menu (a script's `menu:` lines) is drawn.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MenuStyle {
+    /// `"wings"`: drawn by wingbar in the bar's colours, hanging from the wing.
+    #[default]
+    Wings,
+    /// `"native"`: a standard macOS menu (VoiceOver reads it like any menu).
+    Native,
 }
 
 /// `theme.icons`: the icons built-in widgets draw with. Any icon option can

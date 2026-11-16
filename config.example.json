@@ -24,6 +24,8 @@
     "alert": "#ff6b7a",
     "//icons": "sf (SF Symbols) or simple-bar (its icons and its wings theme's, and app icons in the workspaces)",
     "icons": "sf",
+    "//menus": "wings (widget menus drawn in the bar's colours, hanging from the wing) or native (macOS menus)",
+    "menus": "wings",
     "colors": {
       "green": "#9ed072",
       "blue": "#76cce0",

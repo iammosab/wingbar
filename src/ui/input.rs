@@ -4,10 +4,11 @@
 //! script's `menu:` lines), or ask the person's BarPopover app for a hover menu.
 
 use super::bar_menu;
+use super::dropdown;
 use super::layout::{Hit, Region, Side, hit_at};
 use super::menu::{self, Menu};
 use super::view::BarView;
-use crate::config::{self, MenuOn, Wing};
+use crate::config::{self, MenuOn, MenuStyle, Wing};
 use crate::sched;
 use crate::state::{self, Panel};
 use crate::widgets::{self, Button, MenuLine, Scroll};
@@ -38,6 +39,13 @@ impl BarView {
 
     pub(super) fn click(&self, e: &NSEvent, b: Button) {
         let region = self.hit_at(e);
+        // a click on the bar closes a widget's open menu; on the widget whose
+        // menu a click opened, that is all it does
+        let again = matches!(&region, Some(Region { hit: Hit::Widget(k), .. }) if dropdown::pinned_for(k));
+        dropdown::close();
+        if again && b == Button::Left {
+            return;
+        }
         // the wingbar menu: a right-click, unless the widget has a right-click
         // action of its own; ⌥-right-click and ⌃-click open it whatever is there
         if b != Button::Middle && bar_menu::forced(b == Button::Right, e.modifierFlags()) {
@@ -65,7 +73,7 @@ impl BarView {
                     && let Some(lines) = reg.menu(&key, MenuOn::Click)
                 {
                     drop(reg);
-                    self.open_menu(&key, lines, x0);
+                    self.open_menu(&key, lines, x0, x1, true);
                 } else if !reg.click(&key, b, None) && b == Button::Left {
                     self.show_popover(&key, x0, x1, 0);
                 }
@@ -88,10 +96,17 @@ impl BarView {
         bar_menu::pop_up(&cfg, key.as_deref(), wing, self, NSPoint::new(x, h));
     }
 
-    /// Show a widget's menu under it. Returns when the menu closes.
-    fn open_menu(&self, key: &str, lines: Vec<MenuLine>, x0: f64) {
-        let h = self.ivars().m.get().h;
-        menu::pop_up(script_menu(key, lines), self, NSPoint::new(x0, h));
+    /// Show a widget's menu under it (the widget spans `x0..x1`): drawn by
+    /// wingbar, or a macOS menu with `theme.menus: "native"` (which returns
+    /// only when it closes). `pinned`: opened by a click.
+    fn open_menu(&self, key: &str, lines: Vec<MenuLine>, x0: f64, x1: f64, pinned: bool) {
+        let m = script_menu(key, lines);
+        if config::current().theme.menus == MenuStyle::Native {
+            let h = self.ivars().m.get().h;
+            menu::pop_up(m, self, NSPoint::new(x0, h));
+        } else {
+            dropdown::show(self, key, m, x0, x1, pinned);
+        }
     }
 
     /// Open the widget's hover menu once the pointer has rested on it for
@@ -100,15 +115,17 @@ impl BarView {
     /// A run-loop timer, not a main-queue block: the menu runs its own loop
     /// until it closes, and from inside a main-queue block that loop would hold
     /// up every other block on the queue (the bar's redraws).
-    fn menu_after_rest(&self, key: &str, x0: f64, hgen: u64) {
+    fn menu_after_rest(&self, key: &str, x0: f64, x1: f64, hgen: u64) {
         let (bar, key) = (Weak::from(self), key.to_string());
         let block = RcBlock::new(move |_: NonNull<NSTimer>| {
             if HOVER_GEN.load(Ordering::SeqCst) != hgen {
                 return; // the pointer has moved on
             }
             // asked again: the menu may have changed, or gone, meanwhile
-            if let (Some(bar), Some(lines)) = (bar.load(), widgets::current().menu(&key, MenuOn::Hover)) {
-                bar.open_menu(&key, lines, x0);
+            if let (Some(bar), Some(lines)) = (bar.load(), widgets::current().menu(&key, MenuOn::Hover))
+                && !dropdown::is_open_for(&key)
+            {
+                bar.open_menu(&key, lines, x0, x1, false);
             }
         });
         // SAFETY: a one-shot timer on this (the main) thread's run loop, so the
@@ -142,7 +159,7 @@ impl BarView {
         if let (Some(k), Some(r)) = (key, hit) {
             self.show_popover(&k, r.x0, r.x1, hgen);
             if widgets::current().menu(&k, MenuOn::Hover).is_some() {
-                self.menu_after_rest(&k, r.x0, hgen);
+                self.menu_after_rest(&k, r.x0, r.x1, hgen);
             }
         }
     }
@@ -157,7 +174,7 @@ impl BarView {
 
     /// Draw again the wings of the widgets the pointer left and is now over
     /// (their hover highlight).
-    fn redraw_hovered(&self, old: Option<&str>, new: Option<&str>) {
+    pub(super) fn redraw_hovered(&self, old: Option<&str>, new: Option<&str>) {
         let sides: Vec<Side> = {
             let lay = self.ivars().layout.borrow();
             let Some(lay) = lay.as_ref() else { return };
@@ -238,7 +255,7 @@ fn scroll_dy(delta: f64, inverted: bool) -> Option<f64> {
 
 /// How far a hover menu may stretch: within the wing the widget is in, or the
 /// whole bar if it's in neither.
-fn popover_bounds(x0: f64, x1: f64, (left_end, right_start): (f64, f64), width: f64) -> (f64, f64) {
+pub(super) fn popover_bounds(x0: f64, x1: f64, (left_end, right_start): (f64, f64), width: f64) -> (f64, f64) {
     if x1 <= left_end + 1.0 {
         (0.0, left_end)
     } else if x0 >= right_start - 1.0 {

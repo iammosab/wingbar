@@ -35,7 +35,7 @@ fn color_key(c: Rgba) -> u32 {
     (b(c.0) << 24) | (b(c.1) << 16) | (b(c.2) << 8) | b(c.3)
 }
 
-fn nscolor(c: Rgba) -> Retained<NSColor> {
+pub(super) fn nscolor(c: Rgba) -> Retained<NSColor> {
     COLORS.with(|m| {
         m.borrow_mut()
             .entry(color_key(c))
@@ -44,7 +44,7 @@ fn nscolor(c: Rgba) -> Retained<NSColor> {
     })
 }
 
-fn font(size: f64, bold: bool) -> Retained<NSFont> {
+pub(super) fn font(size: f64, bold: bool) -> Retained<NSFont> {
     FONTS.with(|m| {
         m.borrow_mut()
             .entry((size.to_bits(), bold))
@@ -103,7 +103,11 @@ fn bundled_icon(name: &str, color: Rgba, size: f64) -> Option<Retained<NSImage>>
     (sz.width > 0.0 && sz.height > 0.0).then_some(img)
 }
 
-fn attrs(f: &NSFont, c: &NSColor, truncate: bool) -> Retained<NSDictionary<NSAttributedStringKey, AnyObject>> {
+pub(super) fn attrs(
+    f: &NSFont,
+    c: &NSColor,
+    truncate: bool,
+) -> Retained<NSDictionary<NSAttributedStringKey, AnyObject>> {
     // SAFETY: the attribute names are immutable AppKit constants, and each value
     // has the type its key expects (NSFont, NSColor, NSParagraphStyle).
     unsafe {
@@ -123,7 +127,7 @@ fn attrs(f: &NSFont, c: &NSColor, truncate: bool) -> Retained<NSDictionary<NSAtt
     }
 }
 
-fn measure(s: &str, f: &NSFont) -> NSSize {
+pub(super) fn measure(s: &str, f: &NSFont) -> NSSize {
     let a = attrs(f, &nscolor(Rgba(1.0, 1.0, 1.0, 1.0)), false);
     // SAFETY: `a` holds only string-drawing attributes with values of the right types.
     unsafe { NSString::from_str(s).sizeWithAttributes(Some(&a)) }
@@ -299,7 +303,8 @@ fn draw_seg(s: &Seg, m: &Metrics, t: &Theme, hovered: Option<&str>, reg: &Regist
             }
         }
         Kind::Item(it, iw, tw) => {
-            if hovered == Some(&*s.key) && reg.clickable(&s.key) {
+            // highlighted under the pointer, and while its menu is open
+            if (hovered == Some(&*s.key) || super::dropdown::is_open_for(&s.key)) && reg.clickable(&s.key) {
                 nscolor(t.wing_hover).setFill();
                 NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(
                     rect(x + 2.0, 4.0, s.w - 4.0, h - 8.0),

@@ -625,3 +625,13 @@ fn current_settings_can_be_replaced() {
     assert_eq!(current().bar.port, 7124);
     assert_eq!(a.bar.port, 7123, "a reader keeps the settings it took");
 }
+
+#[test]
+fn menus_are_drawn_by_wingbar_unless_native_is_asked_for() {
+    assert_eq!(read(json!({ "version": 2 })).0.theme.menus, MenuStyle::Wings);
+    let (c, w) = read(json!({ "version": 2, "theme": { "menus": "native" } }));
+    assert_eq!((c.theme.menus, w.len()), (MenuStyle::Native, 0));
+    let (c, w) = read(json!({ "version": 2, "theme": { "menus": "fancy" } }));
+    assert_eq!(c.theme.menus, MenuStyle::Wings, "a bad value keeps the default");
+    assert!(has(&w, &["theme.menus"]), "{w:?}");
+}

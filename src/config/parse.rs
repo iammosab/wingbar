@@ -219,6 +219,7 @@ pub fn default_theme() -> Theme {
         alert: d("alert"),
         named: PALETTE.iter().map(|(n, c)| (n.to_string(), hex(c))).collect::<HashMap<_, _>>(),
         icons: IconSet::Sf,
+        menus: MenuStyle::Wings,
     }
 }
 
@@ -286,11 +287,15 @@ fn read_theme(r: &mut Reader, top: &Map<String, Value>) -> Theme {
     let empty = Map::new();
     let t = r.section(top, "theme", "").unwrap_or(&empty);
     let mut known = THEME_KEYS.to_vec();
-    known.extend(["colors", "icons"]);
+    known.extend(["colors", "icons", "menus"]);
     r.unknown(t, &known, "theme");
     theme.icons = match r.choice(t, "icons", "theme", &["sf", "simple-bar"]) {
         Some("simple-bar") => IconSet::SimpleBar,
         _ => IconSet::Sf,
+    };
+    theme.menus = match r.choice(t, "menus", "theme", &["wings", "native"]) {
+        Some("native") => MenuStyle::Native,
+        _ => MenuStyle::Wings,
     };
     if let Some(colors) = r.section(t, "colors", "theme") {
         for (name, v) in colors.iter().filter(|(k, _)| !is_comment(k)) {

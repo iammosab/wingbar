@@ -50,7 +50,8 @@ AeroSpace hooks working. simple-bar's icons are bundled.
 - **Built-in widgets:** window title, CPU, memory, battery, sound (scroll to change
   the volume), date, time, Spotify and Music.
 - **Script widgets:** any command that prints `level|label`. Each level gets its
-  own colour and icon, and a script can add a click or hover menu.
+  own colour and icon, and a script can add a click or hover menu, drawn in the
+  bar's colours and hanging from the wing.
 - **A catalog of ready-made widgets:** storage, network, microphone, adb (Android
   devices), AeroSpace mode, git branch.
 - **Icons:** any SF Symbol, or one of the bundled icons (simple-bar's library of
@@ -61,6 +62,11 @@ AeroSpace hooks working. simple-bar's icons are bundled.
   reported and replaced by its default; the rest of the file still applies.
 - **Multiple screens**, and a local HTTP API compatible with simple-bar-server's
   routes, so existing window manager hooks keep working.
+
+The catalog widgets and their menus (AeroSpace mode, git branch, adb, storage,
+network), shown with demo data:
+
+![Hovering the catalog widgets opens their menus under the bar](docs/menus.gif)
 
 ## Requirements
 
@@ -227,7 +233,9 @@ option. In short:
 - `widgets` defines each widget by key: its `type` and options (`every`, `click`,
   `rightClick`, `middleClick`, `icon`, `levels`, `menuOn`, …).
 - `theme` holds the wing and text colours, plus named `colors` you can use
-  anywhere a colour goes.
+  anywhere a colour goes. `theme.menus` is `"wings"` (widget menus drawn in the
+  bar's colours, the default) or `"native"` (standard macOS menus, which
+  VoiceOver reads like any menu).
 - `bar` holds sizes, the window level and the local port.
 
 Run `wingbar config check` to see problems in the file.

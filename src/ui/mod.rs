@@ -8,11 +8,13 @@
 //! - `draw`: laying out and painting with AppKit (colour, font and icon caches)
 //! - `view`: the `BarView` (content view) and `WingView` classes, forwarding events
 //! - `input`: clicks, scrolls and hovers to the widget registry; hover menus
+//! - `dropdown`: a widget's menu drawn in the bar's colours (`theme.menus: "wings"`)
 //! - `bar_menu`: the wingbar menu (right-click): manage widgets
 //! - `observers`: the NSWorkspace / screen / wake / now-playing notifications
 
 mod bar_menu;
 mod draw;
+mod dropdown;
 mod input;
 mod layout;
 pub mod menu;
@@ -101,6 +103,7 @@ fn window_level() -> isize {
 /// windows stay (nothing blinks); if the screens changed meanwhile, the bars
 /// are made again.
 pub fn apply_settings(mtm: MainThreadMarker) {
+    dropdown::close();
     let screens = NSScreen::screens(mtm);
     if screens.count() != BARS.with(|b| b.borrow().len()) {
         build_bars(mtm);
@@ -131,6 +134,7 @@ pub fn apply_settings(mtm: MainThreadMarker) {
 
 /// (Re)create one bar per screen.
 pub fn build_bars(mtm: MainThreadMarker) {
+    dropdown::close();
     BARS.with(|b| {
         for bar in b.borrow_mut().drain(..) {
             bar.window.orderOut(None);

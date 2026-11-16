@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### New
+- Widget menus (a script's `menu:` lines) are drawn by wingbar in the bar's
+  colours: a panel hanging from the wing under the widget, joined to it (a
+  square wing corner where they're flush, curved fillets elsewhere), with
+  readings dimmed and the item under the pointer highlighted. Opened by a
+  hover, it closes when the pointer leaves; opened by a click, it stays until a
+  click elsewhere (or on the widget again) or a choice. `theme.menus: "native"` keeps
+  macOS menus. The right-click wingbar menu is still a macOS menu.
+
 ## 0.3.2 — 2026-11-16
 
 ### Fixed

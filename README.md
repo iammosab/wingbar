@@ -54,6 +54,9 @@ AeroSpace hooks working. simple-bar's icons are bundled.
   bar's colours and hanging from the wing.
 - **A catalog of ready-made widgets:** storage, network, microphone, adb (Android
   devices), AeroSpace mode, git branch.
+- **More widgets in [wingbar-widgets](https://github.com/iammosab/wingbar-widgets):**
+  GitHub Actions, Claude usage, ClickUp timer, memory with top apps, network details,
+  mic, prayer times, each with a rich menu.
 - **Icons:** any SF Symbol, or one of the bundled icons (simple-bar's library of
   about 260 icons).
 - **Manage everything from the bar:** right-click a wing to move, hide, remove or
@@ -126,6 +129,20 @@ xattr -dr com.apple.quarantine Wingbar.app
 ```
 
 </details>
+
+### Add more widgets
+
+The built-in widgets and the catalog are a right-click away (see Usage). For more,
+with richer menus, install from
+[wingbar-widgets](https://github.com/iammosab/wingbar-widgets):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iammosab/wingbar-widgets/main/install.sh | bash -s -- ci claude memory
+```
+
+[![Widgets from wingbar-widgets in both wings, their menus open](https://raw.githubusercontent.com/iammosab/wingbar-widgets/main/docs/menus.gif)](https://github.com/iammosab/wingbar-widgets)
+
+### Uninstall
 
 To remove it:
 

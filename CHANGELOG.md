@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.2 — 2026-11-16
 
 ### Fixed
 - A BarPopover panel opened under the first widget of the right wing (or the

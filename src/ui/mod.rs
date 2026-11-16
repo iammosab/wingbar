@@ -29,7 +29,7 @@ use crate::config;
 use draw::rect;
 use layout::Metrics;
 use objc2::rc::Retained;
-use objc2::{DefinedClass, MainThreadMarker, MainThreadOnly, msg_send};
+use objc2::{DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send};
 use objc2_app_kit::{
     NSBackingStoreType, NSBitmapImageFileType, NSColor, NSPanel, NSScreen, NSWindowCollectionBehavior,
     NSWindowStyleMask,
@@ -38,8 +38,25 @@ use objc2_foundation::{NSDictionary, NSPoint, NSRect, NSSize};
 use std::cell::{Cell, RefCell};
 use view::BarView;
 
+define_class!(
+    /// The bar's window: an NSPanel that stays exactly where it is put. AppKit
+    /// otherwise "constrains" a window out of the menu bar's strip, which on a
+    /// screen with a notch pushes the bar down by the notch's height.
+    #[unsafe(super(NSPanel))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "WingbarPanel"]
+    struct BarPanel;
+
+    impl BarPanel {
+        #[unsafe(method(constrainFrameRect:toScreen:))]
+        fn constrain_frame_rect(&self, frame: NSRect, _screen: Option<&NSScreen>) -> NSRect {
+            frame
+        }
+    }
+);
+
 struct Bar {
-    window: Retained<NSPanel>,
+    window: Retained<BarPanel>,
     view: Retained<BarView>,
 }
 
@@ -152,9 +169,9 @@ pub fn build_bars(mtm: MainThreadMarker) {
             NSRect::new(NSPoint::new(f.origin.x, f.origin.y + f.size.height - win_h), NSSize::new(f.size.width, win_h));
         let style = NSWindowStyleMask::Borderless | NSWindowStyleMask::NonactivatingPanel;
         // SAFETY: NSPanel's designated initialiser with arguments of the declared
-        // types, called once on a fresh allocation.
-        let window: Retained<NSPanel> = unsafe {
-            msg_send![NSPanel::alloc(mtm), initWithContentRect: frame, styleMask: style, backing: NSBackingStoreType::Buffered, defer: false]
+        // types, called once on a fresh allocation of our subclass.
+        let window: Retained<BarPanel> = unsafe {
+            msg_send![BarPanel::alloc(mtm), initWithContentRect: frame, styleMask: style, backing: NSBackingStoreType::Buffered, defer: false]
         };
         // SAFETY: we keep our own `Retained` to the window, so AppKit must not
         // also release it on close (that would be a double release).
@@ -162,9 +179,10 @@ pub fn build_bars(mtm: MainThreadMarker) {
         window.setOpaque(false);
         window.setBackgroundColor(Some(&NSColor::clearColor()));
         window.setHasShadow(false);
-        window.setLevel(level);
         window.setHidesOnDeactivate(false);
+        // before setLevel: on a panel this sets the level too (to the normal one)
         window.setFloatingPanel(false);
+        window.setLevel(level);
         window.setBecomesKeyOnlyIfNeeded(true);
         window.setAcceptsMouseMovedEvents(true);
         window.setCollectionBehavior(

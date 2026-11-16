@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+- On a screen with a notch (a MacBook's built-in display) the bar sat a notch's
+  height below the top: macOS moved its window out of the menu bar's strip.
+  The bar's window now stays where wingbar puts it, its wings beside the notch.
+- A bar built at start or after a screen change sat at the app windows' level
+  (so windows could cover it) until the settings were next reloaded: the
+  panel's floating setting reset the level just set. It's applied in order now.
+
 ### New
 - Widget menus (a script's `menu:` lines) are drawn by wingbar in the bar's
   colours: a panel hanging from the wing under the widget, joined to it (a

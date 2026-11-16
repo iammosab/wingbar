@@ -28,6 +28,16 @@
   is (as simple-bar's hover script did), so BarPopover's prayer tab hangs under
   it, also after BarPopover restarts. The import sets it on the prayer widget.
 
+### Install
+- Ready-built releases: each `v*` tag publishes a universal (Apple Silicon +
+  Intel) `Wingbar.app`, so installing no longer needs Rust.
+- One-line install and update:
+  `curl -fsSL https://raw.githubusercontent.com/iammosab/wingbar/main/install.sh | bash`.
+  In a clone `install.sh` still builds from source (`--download` for the release).
+- Homebrew: `brew install iammosab/tap/wingbar`, then `brew services start wingbar`.
+- `install.sh` stops a running bar before replacing it, so macOS no longer kills
+  it for an invalid code signature mid-update.
+
 ### Changed
 - `/widgets` reports `showing` for each running widget: whether it takes room
   on the bar now.

@@ -16,7 +16,8 @@ WINGBAR_CONFIG=$(mktemp -d)/config.json cargo run -- --no-server --quit-after 10
 WINGBAR_CONFIG=... cargo run -- --no-server --snapshot <dir>   # save each bar as bar-N.png after 5 s, exit
 WINGBAR_CONFIG=... cargo run -- widget list                     # the CLI (widget …, config …; --help on each)
 scripts/measure.sh [--isolated] [secs]   # measure the bar's own CPU/memory apart from widget scripts
-./install.sh / ./uninstall.sh    # install to ~/Applications/Wingbar.app + LaunchAgent / remove and restore Übersicht
+./install.sh [--download] / ./uninstall.sh   # build (or download the release) to ~/Applications/Wingbar.app + LaunchAgent / remove and restore Übersicht
+git tag vX.Y.Z && git push --tags   # release: .github/workflows/release.yml builds the universal app (scripts/bundle.sh), publishes it, updates iammosab/homebrew-tap
 ```
 
 **Settings safety:** the settings file is `$WINGBAR_CONFIG`, else `~/.config/wingbar/config.json`, and the bar *writes* it on first start (importing `~/.simplebarrc` if present). When developing on a machine with a real setup, always set `WINGBAR_CONFIG` to a temp path and pass `--no-server` (or a spare `--port`) so a running installed bar on 7776 is never touched. Never write `~/.simplebarrc`.

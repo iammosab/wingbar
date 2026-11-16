@@ -64,22 +64,41 @@ AeroSpace hooks working. simple-bar's icons are bundled.
 
 ## Requirements
 
-- macOS 14 (Sonoma) or newer
-- Rust 1.88 or newer (`brew install rust`, or [rustup](https://rustup.rs))
+- macOS 14 (Sonoma) or newer, Apple Silicon or Intel
 - Optional: AeroSpace or yabai for workspaces
+- Only to build from source: Rust 1.88 or newer
 
 ## Install
+
+**One line** (recommended; switches over from Übersicht + simple-bar for you):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iammosab/wingbar/main/install.sh | bash
+```
+
+This downloads the latest release, installs it to `~/Applications/Wingbar.app`,
+starts it at login (a LaunchAgent), and links the `wingbar` command into
+`~/.local/bin`. If Übersicht + simple-bar are running, it stops them and parks
+simple-bar-server's LaunchAgent so the two bars don't overlap. Run it again to
+update.
+
+**Homebrew:**
+
+```bash
+brew install iammosab/tap/wingbar
+brew services start wingbar
+```
+
+Homebrew doesn't touch Übersicht: quit it and remove it from your login items
+yourself. Update with `brew upgrade wingbar`.
+
+**From source:**
 
 ```bash
 git clone https://github.com/iammosab/wingbar.git
 cd wingbar
-./install.sh
+./install.sh              # builds with cargo; ./install.sh --download installs the release instead
 ```
-
-`install.sh` builds a release binary, installs it to `~/Applications/Wingbar.app`,
-starts it at login (a LaunchAgent), and links the `wingbar` command into
-`~/.local/bin`. If Übersicht + simple-bar are running, it stops them and parks
-simple-bar-server's LaunchAgent so the two bars don't overlap.
 
 macOS asks once for **Accessibility** permission. wingbar uses it only to read
 the focused window's title.
@@ -89,11 +108,28 @@ On first start wingbar writes `~/.config/wingbar/config.json`. It imports
 (when AeroSpace or yabai is installed), window title, CPU, memory, battery,
 sound, date and time.
 
+<details>
+<summary>Downloaded the zip from the Releases page in a browser?</summary>
+
+The app is signed ad hoc, not with an Apple Developer ID, so macOS blocks a copy
+that came through a browser ("Wingbar can't be opened"). The two commands above
+don't have this problem. For a browser download, clear the quarantine flag once:
+
+```bash
+xattr -dr com.apple.quarantine Wingbar.app
+```
+
+</details>
+
 To remove it:
 
 ```bash
-./uninstall.sh   # removes wingbar and brings Übersicht + simple-bar back if you had them
+curl -fsSL https://raw.githubusercontent.com/iammosab/wingbar/main/uninstall.sh | bash
+# or ./uninstall.sh in a clone; with Homebrew: brew services stop wingbar && brew uninstall wingbar
 ```
+
+This removes wingbar and brings Übersicht + simple-bar back if you had them.
+Your settings in `~/.config/wingbar` are kept.
 
 ## Usage
 

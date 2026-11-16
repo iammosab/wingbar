@@ -1,8 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.3.3 — 2026-11-16
 
 ### Fixed
+- Only one bar runs on a settings file. A bar starting while another uses the
+  same settings (one left behind by an upgrade, or started a second time)
+  takes over: the other quits, and is made to if it won't. Bars on other
+  settings (`WINGBAR_CONFIG`) are left alone, and short `--quit-after` or
+  `--snapshot` runs never take over. A bar told to stop (SIGTERM) exits
+  cleanly, so launchd doesn't start a replaced one again; `install.sh` waits
+  for the old bar to be gone.
 - On a screen with a notch (a MacBook's built-in display) the bar sat a notch's
   height below the top: macOS moved its window out of the menu bar's strip.
   The bar's window now stays where wingbar puts it, its wings beside the notch.

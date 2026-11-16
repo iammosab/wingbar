@@ -11,6 +11,19 @@ set -euo pipefail
 
 REPO="iammosab/wingbar"
 
+# Wait for every bar running from $1 to end (one started by hand, or left
+# behind, isn't stopped by bootout); force it after 3 seconds.
+stop_running() {
+  local i
+  pkill -TERM -f "^$1( |$)" 2>/dev/null || return 0
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    pgrep -f "^$1( |$)" >/dev/null || return 0
+    sleep 0.2
+  done
+  pkill -KILL -f "^$1( |$)" 2>/dev/null || true
+  sleep 0.3
+}
+
 main() {
   local mode=auto
   case "${1:-}" in
@@ -72,6 +85,7 @@ main() {
   # Stop a running bar first: replacing a running program's file in place makes
   # macOS kill it for an invalid code signature.
   launchctl bootout "gui/$uid_n" "$plist" >/dev/null 2>&1 || true
+  stop_running "$app/Contents/MacOS/wingbar"
 
   echo "→ installing $app"
   mkdir -p "$HOME/Applications"

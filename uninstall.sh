@@ -13,6 +13,8 @@ main() {
   plist="$agents/local.wingbar.plist"
 
   launchctl bootout "gui/$uid_n" "$plist" >/dev/null 2>&1
+  # a bar started by hand isn't stopped by bootout
+  pkill -TERM -f "^$HOME/Applications/Wingbar.app/Contents/MacOS/wingbar( |$)" 2>/dev/null
   rm -f "$plist" "$HOME/.local/bin/wingbar"
   rm -rf "$HOME/Applications/Wingbar.app"
 

@@ -12,6 +12,7 @@ mod manage;
 mod reload;
 mod sched;
 mod server;
+mod single;
 mod state;
 mod sys;
 mod ui;
@@ -98,6 +99,15 @@ fn main() {
         std::process::exit(1);
     }
     let cfg = config::load(port, no_server);
+    // one bar per settings file: a bar already on them steps aside (not for
+    // the short runs that measure or take pictures, which only look)
+    single::exit_cleanly_on_sigterm();
+    if quit_after.is_none() && snap.is_none() {
+        let port = cfg.bar.server.then_some(cfg.bar.port);
+        if let Some(note) = single::take_over(&config::settings_path(), port) {
+            eprintln!("wingbar: {note}");
+        }
+    }
     widgets::set_current(widgets::Registry::build(&cfg));
 
     let mtm = MainThreadMarker::new().expect("main thread");

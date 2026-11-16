@@ -19,6 +19,7 @@ mod input;
 mod layout;
 pub mod menu;
 mod observers;
+mod rich;
 mod view;
 
 pub use bar_menu::debug as debug_bar_menus;

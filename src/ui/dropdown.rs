@@ -2,8 +2,9 @@
 //! panel in the bar's colours hanging under the widget, joined to its wing.
 //! Where it is flush with the wing's inner end the wing's corner squares
 //! (through `state.panel`, as for BarPopover); elsewhere a small concave
-//! fillet joins panel and wing. Rows: items (highlighted under the pointer),
-//! readings (dimmed) and separators.
+//! fillet joins panel and wing. Its rows are read from the menu's lines by
+//! `rich`: items (highlighted under the pointer), readings, headers, sections,
+//! label/value columns, meters, captions, a row of buttons, separators.
 //!
 //! Opened by a hover, it closes once the pointer has left the widget and the
 //! panel for a moment. Opened by a click, it stays until a click elsewhere
@@ -18,7 +19,8 @@
 use super::draw::{attrs, font, measure, nscolor, rect};
 use super::input::popover_bounds;
 use super::layout::Metrics;
-use super::menu::{Action, Entry, Menu};
+use super::menu::{Action, Menu};
+use super::rich::{self, Dims, Face, Geometry, Hit, Kind, Row};
 use super::view::BarView;
 use crate::config::{self, Rgba};
 use crate::state::{self, Panel};
@@ -35,77 +37,8 @@ use std::cell::{Cell, RefCell};
 use std::ptr::NonNull;
 use std::time::{Duration, Instant};
 
-// ── the model (pure) ────────────────────────────────────────────────────────
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RowKind {
-    /// Something to choose.
-    Item,
-    /// A reading: shown dimmed, not chosen.
-    Info,
-    Separator,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Row {
-    pub kind: RowKind,
-    pub title: String,
-}
-
-/// Sizes for a bar's metrics.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Dims {
-    pub row_h: f64,
-    pub sep_h: f64,
-    /// Above the first row and below the last.
-    pub pad_y: f64,
-    /// Left and right of a row's text.
-    pub pad_x: f64,
-    pub min_w: f64,
-    pub max_w: f64,
-    /// The radius of the panel's bottom corners.
-    pub corner: f64,
-    /// The concave fillets joining panel and wing.
-    pub fillet: f64,
-}
-
-impl Dims {
-    pub fn for_metrics(m: &Metrics) -> Dims {
-        Dims {
-            row_h: (m.font * 2.0).round(),
-            sep_h: 9.0,
-            pad_y: 5.0,
-            pad_x: m.pad + 5.0,
-            min_w: 150.0,
-            max_w: 420.0,
-            corner: (m.corner * 0.8).round(),
-            fillet: (m.corner * 0.6).round(),
-        }
-    }
-}
-
-/// The panel body's width and height, and each row's top and height.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Geometry {
-    pub w: f64,
-    pub h: f64,
-    pub rows: Vec<(f64, f64)>,
-}
-
-/// Lay rows out: as wide as the widest title (between `min_w`, or the widget's
-/// own width when wider, and `max_w`), rows stacked between the paddings.
-pub fn geometry(rows: &[Row], text_w: &dyn Fn(&str) -> f64, d: &Dims, anchor_w: f64) -> Geometry {
-    let widest = rows.iter().filter(|r| r.kind != RowKind::Separator).map(|r| text_w(&r.title)).fold(0.0, f64::max);
-    let w = (widest + d.pad_x * 2.0).max(d.min_w).max(anchor_w).min(d.max_w).ceil();
-    let mut y = d.pad_y;
-    let mut out = Vec::with_capacity(rows.len());
-    for r in rows {
-        let h = if r.kind == RowKind::Separator { d.sep_h } else { d.row_h };
-        out.push((y, h));
-        y += h;
-    }
-    Geometry { w, h: (y + d.pad_y).ceil(), rows: out }
-}
+// ── placement (pure) ─────────────────────────────────────────────────────────
+// The rows themselves (what each line looks like, sizes, hit testing) are in `rich`.
 
 /// Where the panel body's left edge goes: centred under the widget
 /// (`anchor`, its left and right edge), kept inside `bounds` (the wing), or
@@ -123,34 +56,6 @@ pub fn fillets(x: f64, w: f64, bounds: (f64, f64)) -> (bool, bool) {
     (x > bounds.0 + 1.0, x + w < bounds.1 - 1.0)
 }
 
-/// The row at height `y` (panel coordinates, top down), if it can be chosen.
-pub fn item_at(rows: &[Row], g: &Geometry, y: f64) -> Option<usize> {
-    let i = g.rows.iter().position(|&(top, h)| y >= top && y < top + h)?;
-    (rows[i].kind == RowKind::Item).then_some(i)
-}
-
-/// A menu's entries as rows and their actions (an item without one, or with
-/// a submenu, which this menu doesn't show, is a reading).
-fn rows_of(menu: Menu) -> (Vec<Row>, Vec<Option<Action>>) {
-    let mut rows = Vec::new();
-    let mut actions = Vec::new();
-    for e in menu.entries {
-        match e {
-            Entry::Separator => {
-                rows.push(Row { kind: RowKind::Separator, title: String::new() });
-                actions.push(None);
-            }
-            Entry::Item(it) => {
-                let act = it.action.filter(|_| it.enabled && it.submenu.is_none());
-                let kind = if act.is_some() { RowKind::Item } else { RowKind::Info };
-                rows.push(Row { kind, title: it.title });
-                actions.push(act);
-            }
-        }
-    }
-    (rows, actions)
-}
-
 // ── AppKit ──────────────────────────────────────────────────────────────────
 
 /// How long the pointer may be away before a hover-opened menu closes.
@@ -158,13 +63,14 @@ const LEAVE_GRACE: Duration = Duration::from_millis(250);
 
 pub struct ViewIvars {
     rows: Vec<Row>,
+    /// By slot (see `rich::rows_of`).
     actions: RefCell<Vec<Option<Action>>>,
     g: Geometry,
     d: Dims,
     m: Metrics,
     /// Fillets at the top left and right.
     fillets: (bool, bool),
-    hovered: Cell<Option<usize>>,
+    hovered: Cell<Option<Hit>>,
 }
 
 define_class!(
@@ -216,8 +122,8 @@ define_class!(
 
         #[unsafe(method(mouseUp:))]
         fn mouse_up(&self, e: &NSEvent) {
-            if let Some(i) = self.row_under(e) {
-                self.choose(i);
+            if let Some(h) = self.hit_under(e) {
+                self.choose(h);
             }
         }
 
@@ -225,29 +131,27 @@ define_class!(
 );
 
 impl DropdownView {
-    fn row_under(&self, e: &NSEvent) -> Option<usize> {
+    fn hit_under(&self, e: &NSEvent) -> Option<Hit> {
         let p = self.convertPoint_fromView(e.locationInWindow(), None);
         let iv = self.ivars();
         let x0 = if iv.fillets.0 { iv.d.fillet } else { 0.0 };
-        if p.x < x0 || p.x > x0 + iv.g.w {
-            return None;
-        }
-        item_at(&iv.rows, &iv.g, p.y)
+        rich::hit(&iv.rows, &iv.g, p.x - x0, p.y)
     }
 
     fn hover_at(&self, e: &NSEvent) {
-        self.set_hovered(self.row_under(e));
+        self.set_hovered(self.hit_under(e));
     }
 
-    fn set_hovered(&self, i: Option<usize>) {
-        if self.ivars().hovered.replace(i) != i {
+    fn set_hovered(&self, h: Option<Hit>) {
+        if self.ivars().hovered.replace(h) != h {
             self.setNeedsDisplay(true);
         }
     }
 
-    /// Close, then run the item's action.
-    fn choose(&self, i: usize) {
-        let act = self.ivars().actions.borrow_mut().get_mut(i).and_then(Option::take);
+    /// Close, then run the chosen action.
+    fn choose(&self, h: Hit) {
+        let iv = self.ivars();
+        let act = rich::slot_of(&iv.rows, h).and_then(|i| iv.actions.borrow_mut().get_mut(i).and_then(Option::take));
         close();
         if let Some(f) = act {
             f();
@@ -297,34 +201,99 @@ impl DropdownView {
             p.fill();
         }
 
-        let fnt = font(iv.m.font, false);
-        let th = measure("0", &fnt).height;
+        let hovered = iv.hovered.get();
+        let faint = |a: f64| nscolor(Rgba(t.faint.0, t.faint.1, t.faint.2, t.faint.3 * a));
+        let highlight = |x: f64, y: f64, w: f64, h: f64| {
+            nscolor(t.wing_hover).setFill();
+            NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect(x, y, w, h), 6.0, 6.0).fill();
+        };
+        let (left, right) = (bx + d.pad_x, bx + g.w - d.pad_x);
         for (i, (row, &(y, h))) in iv.rows.iter().zip(&g.rows).enumerate() {
-            match row.kind {
-                RowKind::Separator => {
-                    let c = t.faint;
-                    nscolor(Rgba(c.0, c.1, c.2, c.3 * 0.45)).setFill();
-                    NSBezierPath::fillRect(rect(bx + d.pad_x, (y + h / 2.0).floor(), g.w - d.pad_x * 2.0, 1.0));
+            match &row.kind {
+                Kind::Separator => {
+                    faint(0.45).setFill();
+                    NSBezierPath::fillRect(rect(left, (y + h / 2.0).floor(), right - left, 1.0));
                 }
-                RowKind::Item | RowKind::Info => {
-                    let item = row.kind == RowKind::Item;
-                    if item && iv.hovered.get() == Some(i) {
-                        nscolor(t.wing_hover).setFill();
-                        NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(
-                            rect(bx + 5.0, y + 1.0, g.w - 10.0, h - 2.0),
-                            6.0,
-                            6.0,
-                        )
+                Kind::Meter(pct, color) => {
+                    let c = color.as_deref().and_then(|c| t.color(c)).unwrap_or(t.text);
+                    let (my, mh) = ((y + 1.0).round(), 3.0);
+                    faint(0.3).setFill();
+                    NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect(left, my, right - left, mh), 1.5, 1.5)
                         .fill();
+                    nscolor(c).setFill();
+                    let fw = ((right - left) * pct / 100.0).max(if *pct > 0.0 { mh } else { 0.0 });
+                    NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect(left, my, fw, mh), 1.5, 1.5).fill();
+                }
+                Kind::Buttons(bs) => {
+                    let bw = g.w / bs.len() as f64;
+                    for (j, b) in bs.iter().enumerate() {
+                        let x = bx + bw * j as f64;
+                        if hovered == Some(Hit::Button(i, j)) {
+                            highlight(x + 4.0, y + 3.0, bw - 8.0, h - 6.0);
+                        }
+                        if j > 0 {
+                            faint(0.45).setFill();
+                            NSBezierPath::fillRect(rect(x.floor(), y + h * 0.28, 1.0, h * 0.44));
+                        }
+                        let c = if b.slot.is_some() { t.text } else { t.dim };
+                        let f = self.face(Face::Bold);
+                        let tw = measure(&b.title, &f).width.min(bw - 8.0);
+                        self.text(&b.title, Face::Bold, c, x + ((bw - tw) / 2.0).max(4.0), y, tw, h);
                     }
-                    let color = nscolor(if item { t.text } else { t.dim });
-                    let a = attrs(&fnt, &color, true);
-                    let tr = rect(bx + d.pad_x, y + ((h - th) / 2.0).round(), g.w - d.pad_x * 2.0, th);
-                    // SAFETY: inside drawRect:; `a` holds string-drawing attributes of the right types.
-                    unsafe { NSString::from_str(&row.title).drawInRect_withAttributes(tr, Some(&a)) };
+                }
+                k => {
+                    let clickable = row.slot.is_some();
+                    if clickable && hovered == Some(Hit::Row(i)) {
+                        highlight(bx + 5.0, y + 1.0, g.w - 10.0, h - 2.0);
+                    }
+                    let label_c = match k {
+                        Kind::Info | Kind::Caption => t.dim,
+                        _ => t.text,
+                    };
+                    let mut r = right;
+                    if *k == Kind::Item && row.value.is_some() {
+                        let cw = d.chevron;
+                        self.text("›", Face::Regular, t.dim, r - cw + 4.0, y, cw, h);
+                        r -= cw;
+                    }
+                    let mut vw = 0.0;
+                    if let Some(v) = &row.value {
+                        let vf = rich::value_face(k);
+                        let value_c = if *k == Kind::Header { t.dim } else { t.text };
+                        // the value gets what the label leaves; both shorten only when they must
+                        let room = r - left - d.gap * 0.5;
+                        let lw = measure(&row.title, &self.face(rich::title_face(k))).width;
+                        vw = measure(v, &self.face(vf)).width.min((room - lw).max(room * 0.45));
+                        self.text(v, vf, value_c, r - vw, y, vw, h);
+                        vw += d.gap * 0.5;
+                    }
+                    self.text(&row.title, rich::title_face(k), label_c, left, y, (r - left - vw).max(0.0), h);
                 }
             }
         }
+    }
+
+    /// A font for `face` at this bar's size.
+    fn face(&self, f: Face) -> Retained<objc2_app_kit::NSFont> {
+        let size = self.ivars().m.font;
+        match f {
+            Face::Regular => font(size, false),
+            Face::Bold => font(size, true),
+            Face::Small => font((size * 0.86).round(), false),
+        }
+    }
+
+    /// Draw `s` in `face` and `color`, in the box at `x` of width `w`, centred
+    /// in the row from `y` of height `h`; cut short with … when it doesn't fit.
+    #[allow(clippy::too_many_arguments)]
+    fn text(&self, s: &str, face: Face, color: Rgba, x: f64, y: f64, w: f64, h: f64) {
+        let f = self.face(face);
+        let th = measure("0", &f).height;
+        let a = attrs(&f, &nscolor(color), true);
+        // SAFETY: inside drawRect:; `a` holds string-drawing attributes of the right types.
+        unsafe {
+            NSString::from_str(s).drawInRect_withAttributes(rect(x, y + ((h - th) / 2.0).round(), w, th), Some(&a))
+        };
     }
 }
 
@@ -365,17 +334,18 @@ pub(super) fn pinned_for(key: &str) -> bool {
 /// menu isn't shown.
 pub(super) fn show(bar: &BarView, key: &str, menu: Menu, x0: f64, x1: f64, pinned: bool) {
     close();
-    let (rows, actions) = rows_of(menu);
-    if rows.iter().all(|r| r.kind == RowKind::Separator) {
+    let (rows, actions) = rich::rows_of(menu);
+    if rows.iter().all(|r| r.kind == Kind::Separator) {
         return;
     }
     let mtm = bar.mtm();
     let Some(win) = bar.window() else { return };
     let iv = bar.ivars();
     let m = iv.m.get();
-    let d = Dims::for_metrics(&m);
-    let fnt = font(m.font, false);
-    let g = geometry(&rows, &|s| measure(s, &fnt).width, &d, x1 - x0);
+    let d = Dims::new(m.font, m.pad, m.corner);
+    let fonts = [font(m.font, false), font(m.font, true), font((m.font * 0.86).round(), false)];
+    let text_w = |s: &str, f: Face| measure(s, &fonts[f as usize]).width;
+    let g: Geometry = rich::geometry(&rows, &text_w, &d, x1 - x0);
     let width = bar.frame().size.width;
     let bounds = popover_bounds(x0, x1, iv.wings.get(), width);
     let x = place((x0, x1), g.w, bounds, width);
@@ -515,41 +485,6 @@ fn tick() {
 mod tests {
     use super::*;
 
-    fn row(kind: RowKind, t: &str) -> Row {
-        Row { kind, title: t.into() }
-    }
-    const D: Dims = Dims {
-        row_h: 28.0,
-        sep_h: 9.0,
-        pad_y: 5.0,
-        pad_x: 16.0,
-        min_w: 150.0,
-        max_w: 420.0,
-        corner: 14.0,
-        fillet: 11.0,
-    };
-
-    fn sample() -> Vec<Row> {
-        vec![
-            row(RowKind::Info, "Wi-Fi (en0): 192.168.1.20"),
-            row(RowKind::Separator, ""),
-            row(RowKind::Item, "Open Wi-Fi Settings"),
-            row(RowKind::Item, "Open Network Settings"),
-        ]
-    }
-
-    #[test]
-    fn rows_stack_and_the_panel_is_as_wide_as_its_widest_title() {
-        let w = |s: &str| s.len() as f64 * 7.0;
-        let g = geometry(&sample(), &w, &D, 80.0);
-        assert_eq!(g.rows, vec![(5.0, 28.0), (33.0, 9.0), (42.0, 28.0), (70.0, 28.0)]);
-        assert_eq!(g.h, 5.0 + 28.0 + 9.0 + 28.0 + 28.0 + 5.0);
-        assert_eq!(g.w, 25.0 * 7.0 + 32.0, "the widest title and its padding");
-        assert_eq!(geometry(&[row(RowKind::Item, "Hi")], &w, &D, 80.0).w, 150.0, "at least min_w");
-        assert_eq!(geometry(&[row(RowKind::Item, "Hi")], &w, &D, 200.0).w, 200.0, "at least the widget");
-        assert_eq!(geometry(&[row(RowKind::Item, &"x".repeat(200))], &w, &D, 80.0).w, 420.0, "at most max_w");
-    }
-
     #[test]
     fn the_panel_is_centred_under_its_widget_and_stays_in_the_wing() {
         // right wing 1500..2000 of a 2000 pt screen
@@ -562,35 +497,5 @@ mod tests {
         assert_eq!(fillets(1630.0, 200.0, wing), (true, true));
         assert_eq!(fillets(1500.0, 200.0, wing), (false, true), "flush with the wing's start");
         assert_eq!(fillets(1800.0, 200.0, wing), (true, false), "flush with its end");
-    }
-
-    #[test]
-    fn only_items_can_be_hit() {
-        let rows = sample();
-        let g = geometry(&rows, &|s| s.len() as f64 * 7.0, &D, 80.0);
-        assert_eq!(item_at(&rows, &g, 10.0), None, "a reading");
-        assert_eq!(item_at(&rows, &g, 36.0), None, "the separator");
-        assert_eq!(item_at(&rows, &g, 50.0), Some(2));
-        assert_eq!(item_at(&rows, &g, 97.0), Some(3));
-        assert_eq!(item_at(&rows, &g, 99.0), None, "the bottom padding");
-    }
-
-    #[test]
-    fn a_menu_becomes_rows_with_their_actions() {
-        let mut sub = Menu::new();
-        sub.item("deeper", || {});
-        let mut m = Menu::new();
-        m.info("Reading").separator().item("Do it", || {}).submenu("More", sub);
-        let (rows, actions) = rows_of(m);
-        assert_eq!(
-            rows,
-            vec![
-                row(RowKind::Info, "Reading"),
-                row(RowKind::Separator, ""),
-                row(RowKind::Item, "Do it"),
-                row(RowKind::Info, "More"),
-            ]
-        );
-        assert_eq!(actions.iter().map(Option::is_some).collect::<Vec<_>>(), [false, false, true, false]);
     }
 }

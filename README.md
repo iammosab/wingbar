@@ -213,6 +213,22 @@ opens on click, or on hover with `"menuOn": "hover"`:
 
 ![A script widget's menu, opened by hovering over it](docs/hover-menu.png)
 
+A menu line can also say how it looks. A tab (`$'\t'` in bash) splits a line into a
+label and a value on the right:
+
+```text
+menu: # Memory<TAB>Pressure normal       a header: bold title, subtitle on the right
+menu: ## Today<TAB>8 runs                a section: a bold row
+menu: Used<TAB>39.4 GB · 82%             label left, value right (› on a row with a command)
+menu: ~82 green                          a meter under the row above (0–100, a colour or level)
+menu: _ updated 1m ago                   a caption: small and dim
+menu: > Activity Monitor | open -a 'Activity Monitor'   a button; buttons in a row share a line
+```
+
+![A menu using headers, columns, meters, captions and buttons](docs/rich-menu.png)
+
+In a macOS menu (`theme.menus: "native"`) these become plain items and meters are left out.
+
 Add the widget with `wingbar widget add script --as NAME --command "…"`, then
 tune it in `config.json`:
 

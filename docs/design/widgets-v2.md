@@ -114,6 +114,14 @@ menu: ---               separator
 Other lines are ignored. At most 64 lines / 16 KB are read. An empty line 1 hides
 the widget (unless `hideWhenEmpty: false`).
 
+Since 0.4 a title may say how its row looks (`ui/rich.rs`): `# Title<TAB>sub` a
+header, `## Label<TAB>value` a section, `Label<TAB>value` two columns, `~N colour`
+a meter under the row above, `_ text` a caption, `> Title` a button (neighbours
+share a row). The tab is the column break, which is why untrusted text must lose
+its control characters: a stray tab would only move text into the value column,
+and a leading `# `/`## `/`_ `/`> `/`~N` only changes a row's look, never what it
+runs. Native menus show these as plain items (meters dropped).
+
 In a `menu:` line the first `|` ends the title; everything after it is the
 command. A title therefore never contains a `|`, and a script that puts text it
 doesn't control into a title (a device name, an SSID, a branch or folder name)

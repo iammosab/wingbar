@@ -100,12 +100,11 @@ impl BarView {
     /// wingbar, or a macOS menu with `theme.menus: "native"` (which returns
     /// only when it closes). `pinned`: opened by a click.
     fn open_menu(&self, key: &str, lines: Vec<MenuLine>, x0: f64, x1: f64, pinned: bool) {
-        let m = script_menu(key, lines);
         if config::current().theme.menus == MenuStyle::Native {
             let h = self.ivars().m.get().h;
-            menu::pop_up(m, self, NSPoint::new(x0, h));
+            menu::pop_up(script_menu(key, native_lines(lines)), self, NSPoint::new(x0, h));
         } else {
-            dropdown::show(self, key, m, x0, x1, pinned);
+            dropdown::show(self, key, script_menu(key, lines), x0, x1, pinned);
         }
     }
 
@@ -198,6 +197,20 @@ impl BarView {
         let args = std::iter::once(key.to_string()).chain(nums).collect();
         request_popover(Popover { args, hgen, path: None, screen: self.ivars().screen.get() });
     }
+}
+
+/// Menu lines for a macOS menu: styled lines as plain text (see `rich`), meters left out.
+fn native_lines(lines: Vec<MenuLine>) -> Vec<MenuLine> {
+    lines
+        .into_iter()
+        .filter_map(|l| match l {
+            MenuLine::Info(t) => super::rich::plain(&t).map(MenuLine::Info),
+            MenuLine::Action { title, command } => {
+                super::rich::plain(&title).map(|title| MenuLine::Action { title, command })
+            }
+            MenuLine::Separator => Some(MenuLine::Separator),
+        })
+        .collect()
 }
 
 /// A script's menu lines as a menu: an item runs its command like a click
@@ -490,6 +503,24 @@ mod tests {
         assert_eq!(parse_panel_file("123 ci 900 800"), Some((123, None)), "edges the wrong way round");
         assert_eq!(parse_panel_file(""), None);
         assert_eq!(parse_panel_file("abc ci 1 2"), None);
+    }
+
+    #[test]
+    fn a_macos_menu_gets_styled_lines_as_plain_text() {
+        let lines = vec![
+            MenuLine::Info("# Memory\tPressure normal".into()),
+            MenuLine::Info("~80 green".into()),
+            MenuLine::Separator,
+            MenuLine::Action { title: "> Refresh".into(), command: "x".into() },
+        ];
+        assert_eq!(
+            native_lines(lines),
+            vec![
+                MenuLine::Info("Memory   Pressure normal".into()),
+                MenuLine::Separator,
+                MenuLine::Action { title: "Refresh".into(), command: "x".into() },
+            ]
+        );
     }
 
     #[test]

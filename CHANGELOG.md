@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 — 2026-11-17
+
+### New
+- Richer widget menus. A `menu:` line can be a header with a subtitle (`# Title<TAB>sub`),
+  a bold section (`## Label<TAB>value`), a label with a value on the right
+  (`Label<TAB>value`, with a `›` when it has a command), a meter under the row above
+  (`~82 green`), a small caption (`_ text`), or a button (`> Title | command`;
+  buttons next to each other share a row). Plain lines look as before, and a macOS
+  menu (`theme.menus: "native"`) shows the new lines as plain items.
+
 ## 0.3.3 — 2026-11-16
 
 ### Fixed

@@ -9,6 +9,7 @@ use super::menu::{self, Menu};
 use super::view::BarView;
 use crate::config::{self, MenuOn, Wing};
 use crate::sched;
+use crate::state::{self, Panel};
 use crate::widgets::{self, Button, MenuLine, Scroll};
 use block2::RcBlock;
 use objc2::rc::Weak;
@@ -16,6 +17,7 @@ use objc2::{DefinedClass, MainThreadMarker};
 use objc2_app_kit::{NSEvent, NSEventModifierFlags};
 use objc2_foundation::{NSPoint, NSTimer};
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
@@ -177,7 +179,7 @@ impl BarView {
         let h = self.ivars().m.get().h;
         let nums = [x0, x1 - x0, min_x, max_x, h].map(|v| v.round().to_string());
         let args = std::iter::once(key.to_string()).chain(nums).collect();
-        request_popover(Popover { args, hgen, path: None });
+        request_popover(Popover { args, hgen, path: None, screen: self.ivars().screen.get() });
     }
 }
 
@@ -253,6 +255,8 @@ struct Popover {
     hgen: u64,
     /// Instead of showing a menu: this request for the daemon (no fallback).
     path: Option<String>,
+    /// The screen of the bar asking (1-based).
+    screen: usize,
 }
 
 /// The tab position last sent to BarPopover, and when.
@@ -272,7 +276,7 @@ pub(super) fn report_popover_tab(x: f64, w: f64, h: f64, screen_w: f64) {
         return;
     }
     *sent = Some((q.clone(), Instant::now()));
-    request_popover(Popover { args: Vec::new(), hgen: 0, path: Some(format!("/tab?{q}")) });
+    request_popover(Popover { args: Vec::new(), hgen: 0, path: Some(format!("/tab?{q}")), screen: 1 });
 }
 
 fn tab_query(x: f64, w: f64, h: f64, screen_w: f64) -> String {
@@ -291,9 +295,23 @@ fn request_popover(p: Popover) {
 }
 
 /// The popover thread. The latest request wins; a hover waits 150 ms first, to
-/// ignore a pointer just passing over.
+/// ignore a pointer just passing over. After asking for a panel it follows the
+/// panel (see `follow_panel`) until it closes, and then only waits.
 fn popovers(rx: Receiver<Popover>) {
-    while let Ok(mut p) = rx.recv() {
+    let mut watch: Option<Watch> = None;
+    loop {
+        let next = match &watch {
+            None => rx.recv().map_err(|_| RecvTimeoutError::Disconnected),
+            Some(_) => rx.recv_timeout(PANEL_POLL),
+        };
+        let mut p = match next {
+            Ok(p) => p,
+            Err(RecvTimeoutError::Timeout) => {
+                watch = watch.and_then(follow_panel);
+                continue;
+            }
+            Err(RecvTimeoutError::Disconnected) => return,
+        };
         loop {
             while let Ok(newer) = rx.try_recv() {
                 p = newer;
@@ -325,14 +343,85 @@ fn popovers(rx: Receiver<Popover>) {
             // not listening (yet): send it again on the next redraw
             *TAB_SENT.lock().unwrap_or_else(|e| e.into_inner()) = None;
         }
+        let mut asked = sent.is_ok();
         if sent.is_err()
             && p.path.is_none()
             && let Some(bin) = &cfg.bar.popover_bin
         {
             let args: Vec<&str> = std::iter::once("show").chain(p.args.iter().map(String::as_str)).collect();
             sched::spawn_program(bin, &args);
+            asked = true;
+        }
+        if asked && p.path.is_none() {
+            watch = Some(Watch { screen: p.screen, since: Instant::now(), seen: false });
         }
     }
+}
+
+/// How often an open panel is checked on.
+const PANEL_POLL: Duration = Duration::from_millis(100);
+
+/// A panel asked of BarPopover, followed until it closes.
+#[derive(Clone, Copy)]
+struct Watch {
+    screen: usize,
+    since: Instant,
+    /// The panel has been seen open.
+    seen: bool,
+}
+
+/// Where BarPopover says which panel is open, and where: `pid kind left right`
+/// (screen points) while one is, removed as it closes. Its temporary folder,
+/// which for the same user is this one.
+fn panel_file() -> &'static PathBuf {
+    static PATH: OnceLock<PathBuf> = OnceLock::new();
+    PATH.get_or_init(|| {
+        objc2::rc::autoreleasepool(|_| PathBuf::from(objc2_foundation::NSTemporaryDirectory().to_string()))
+            .join("barpopover.pid")
+    })
+}
+
+/// One check on the panel being followed: tell the state where it is, or that
+/// it closed. `None` stops following: the panel closed (or never came within
+/// 3 s), its app is gone, or it has been followed for 10 minutes.
+fn follow_panel(w: Watch) -> Option<Watch> {
+    let text = std::fs::read_to_string(panel_file()).ok();
+    let state = text.as_deref().map(parse_panel_file);
+    let age = w.since.elapsed();
+    let alive = |pid: i32| {
+        // SAFETY: signal 0 only checks that the process exists; nothing is sent.
+        pid > 0
+            && (unsafe { libc::kill(pid, 0) } == 0
+                || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM))
+    };
+    let next = match state {
+        Some(Some((pid, edges))) if alive(pid) && age < Duration::from_secs(600) => {
+            if let Some((x0, x1)) = edges {
+                state::set_panel(Some(Panel { screen: w.screen, x0, x1 }));
+            }
+            Some(Watch { seen: true, ..w })
+        }
+        // not up yet (its content may take a moment)
+        None if !w.seen && age < Duration::from_secs(3) => Some(w),
+        _ => None,
+    };
+    if next.is_none() {
+        state::set_panel(None);
+    }
+    next
+}
+
+/// BarPopover's panel file: its pid, and the panel's left and right edges
+/// once it is placed (`pid kind` before). `None` for anything else.
+fn parse_panel_file(text: &str) -> Option<(i32, Option<(f64, f64)>)> {
+    let mut f = text.split_whitespace();
+    let pid = f.next()?.parse().ok()?;
+    let _kind = f.next()?;
+    let edges = match (f.next().map(str::parse::<f64>), f.next().map(str::parse::<f64>)) {
+        (Some(Ok(x0)), Some(Ok(x1))) if x0 < x1 => Some((x0, x1)),
+        _ => None,
+    };
+    Some((pid, edges))
 }
 
 #[cfg(test)]
@@ -375,6 +464,15 @@ mod tests {
             [("Today: 2h".into(), false, false), ("---".into(), false, false), ("Stop".into(), true, true)]
         );
         assert!(script_menu("w", vec![]).is_empty());
+    }
+
+    #[test]
+    fn panel_file_lines() {
+        assert_eq!(parse_panel_file("123 ci 2419 2690\n"), Some((123, Some((2419.0, 2690.0)))));
+        assert_eq!(parse_panel_file("123 ci"), Some((123, None)), "claimed, not placed yet");
+        assert_eq!(parse_panel_file("123 ci 900 800"), Some((123, None)), "edges the wrong way round");
+        assert_eq!(parse_panel_file(""), None);
+        assert_eq!(parse_panel_file("abc ci 1 2"), None);
     }
 
     #[test]

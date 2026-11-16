@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- A BarPopover panel opened under the first widget of the right wing (or the
+  last of the left wing) met the wing's rounded inner corner, leaving a notch
+  between the two. That corner now goes square while the panel is open, so
+  wing and panel join as one shape, and rounds again as it closes.
+
 ## 0.3.1 — 2026-11-13
 
 ### Fixed

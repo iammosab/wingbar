@@ -224,10 +224,17 @@ impl BarView {
         nscolor(t.wing).setFill();
         let r = m.corner;
         match side {
+            // a square inner corner where a hover panel hangs flush under it
+            Side::Left if lay.left_end > 0.0 && lay.square_left => {
+                NSBezierPath::fillRect(rect(0.0, 0.0, lay.left_end, h));
+            }
             Side::Left if lay.left_end > 0.0 => {
                 let left_end = lay.left_end;
                 NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect(0.0, -r, left_end, h + r), r, r).fill();
                 NSBezierPath::fillRect(rect(0.0, 0.0, left_end - r, h));
+            }
+            Side::Right if lay.right_start < width && lay.square_right => {
+                NSBezierPath::fillRect(rect(lay.right_start, 0.0, width - lay.right_start, h));
             }
             Side::Right if lay.right_start < width => {
                 let right_start = lay.right_start;

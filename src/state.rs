@@ -32,6 +32,16 @@ pub struct Space {
     pub apps: Vec<String>,
 }
 
+/// A hover panel (BarPopover's) open under a bar: the screen of the bar
+/// that asked for it (1-based), and the panel body's left and right edges in
+/// that bar's points.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Panel {
+    pub screen: usize,
+    pub x0: f64,
+    pub x1: f64,
+}
+
 #[derive(Default)]
 pub struct State {
     pub items: HashMap<String, Item>,
@@ -51,6 +61,9 @@ pub struct State {
     /// that is no longer the key's (see `apply`), so a reload drops only the
     /// results of widgets it removed or replaced.
     pub generations: HashMap<String, u64>,
+    /// The hover panel open under the bar, if any (the wing above it squares
+    /// its corner where the two meet).
+    pub panel: Option<Panel>,
 }
 
 impl State {
@@ -164,6 +177,21 @@ pub fn set_title(t: String) {
             false
         } else {
             st.title = t;
+            true
+        }
+    };
+    if changed {
+        request_redraw();
+    }
+}
+
+pub fn set_panel(p: Option<Panel>) {
+    let changed = {
+        let mut st = lock();
+        if st.panel == p {
+            false
+        } else {
+            st.panel = p;
             true
         }
     };

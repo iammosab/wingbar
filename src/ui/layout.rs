@@ -5,7 +5,7 @@
 //! events through its hit regions.
 
 use crate::config::Rgba;
-use crate::state::{Item, Space, State};
+use crate::state::{Item, Panel, Space, State};
 use crate::widgets::{self, Registry};
 use std::collections::{HashMap, HashSet};
 
@@ -45,6 +45,7 @@ pub struct Snapshot {
     pub spaces: Vec<Space>,
     pub title: String,
     pub disabled: HashSet<String>,
+    pub panel: Option<Panel>,
 }
 
 impl Snapshot {
@@ -53,6 +54,7 @@ impl Snapshot {
         self.spaces.clone_from(&st.spaces);
         self.title.clone_from(&st.title);
         self.disabled.clone_from(&st.disabled);
+        self.panel = st.panel;
     }
 }
 
@@ -146,6 +148,10 @@ pub struct Layout {
     pub left_end: f64,
     /// Where the right wing starts (the bar's width = no right wing).
     pub right_start: f64,
+    /// The left wing's inner corner is square: a hover panel hangs flush under it.
+    pub square_left: bool,
+    /// The right wing's inner corner is square, likewise.
+    pub square_right: bool,
 }
 
 impl Layout {
@@ -204,8 +210,10 @@ impl Layout {
     pub fn changed(&self, old: Option<&Layout>, side: Side) -> bool {
         let Some(old) = old else { return true };
         match side {
-            Side::Left => self.left_end != old.left_end || self.left != old.left,
-            Side::Right => self.right_start != old.right_start || self.right != old.right,
+            Side::Left => self.left_end != old.left_end || self.square_left != old.square_left || self.left != old.left,
+            Side::Right => {
+                self.right_start != old.right_start || self.square_right != old.square_right || self.right != old.right
+            }
         }
     }
 
@@ -360,7 +368,20 @@ pub fn layout(left: &[String], right: &[String], snap: &Snapshot, reg: &Registry
         s.x = x;
         x += s.w;
     }
-    Layout { left, right, left_end, right_start }
+    let panel = snap.panel.filter(|p| p.screen == env.screen).map(|p| (p.x0, p.x1));
+    let (square_left, square_right) = square_corners(left_end, right_start, width, panel);
+    Layout { left, right, left_end, right_start, square_left, square_right }
+}
+
+/// Which wings' inner (rounded) corners go square because a hover panel
+/// hangs flush under them, so wing and panel read as one shape. A panel stays
+/// inside its widget's wing, so one that reaches a wing's inner end (within a
+/// point: BarPopover reports whole points) joins that wing there.
+pub fn square_corners(left_end: f64, right_start: f64, width: f64, panel: Option<(f64, f64)>) -> (bool, bool) {
+    let Some((x0, x1)) = panel else { return (false, false) };
+    let left = left_end > 0.0 && x0 < left_end && x1 >= left_end - 1.0;
+    let right = right_start < width && x1 > right_start && x0 <= right_start + 1.0;
+    (left, right)
 }
 
 #[cfg(test)]
@@ -624,7 +645,14 @@ mod tests {
         assert_eq!(l.span(Side::Left, 2000.0), Some((0.0, 123.0)));
         assert_eq!(l.span(Side::Right, 2000.0), Some((1779.0, 221.0)));
         // fractional ends round outwards, so the views cover all the wing does
-        let l = Layout { left: vec![], right: vec![], left_end: 123.4, right_start: 1779.6 };
+        let l = Layout {
+            left: vec![],
+            right: vec![],
+            left_end: 123.4,
+            right_start: 1779.6,
+            square_left: false,
+            square_right: false,
+        };
         assert_eq!(l.span(Side::Left, 2000.0), Some((0.0, 124.0)));
         assert_eq!(l.span(Side::Right, 2000.0), Some((1779.0, 221.0)));
         let l = layout(&[], &[], &s, &reg, &env(M, 2000.0));
@@ -670,10 +698,43 @@ mod tests {
         st.spaces = vec![space("1", true, 0)];
         st.title = "t".into();
         st.disabled.insert("date".into());
+        st.panel = Some(Panel { screen: 1, x0: 10.0, x1: 90.0 });
         let mut s = Snapshot::default();
         s.items.insert("stale".into(), item(None, "x"));
         s.fill(&st);
         assert_eq!(s.items, st.items);
+        assert_eq!(s.panel, st.panel);
         assert_eq!((s.spaces, s.title, s.disabled), (st.spaces, st.title, st.disabled));
+    }
+
+    #[test]
+    fn a_panel_flush_with_a_wing_squares_its_inner_corner() {
+        // left wing 0..300, right wing 1500..2000
+        let sq = |p| square_corners(300.0, 1500.0, 2000.0, p);
+        assert_eq!(sq(None), (false, false), "no panel");
+        assert_eq!(sq(Some((1500.0, 1780.0))), (false, true), "under the right wing's first widget");
+        assert_eq!(sq(Some((1501.0, 1781.0))), (false, true), "whole points: within a point counts");
+        assert_eq!(sq(Some((1600.0, 1880.0))), (false, false), "in the middle of the wing");
+        assert_eq!(sq(Some((1720.0, 2000.0))), (false, false), "at the screen edge: that corner is square anyway");
+        assert_eq!(sq(Some((20.0, 300.0))), (true, false), "under the left wing's last widget");
+        assert_eq!(sq(Some((0.0, 280.0))), (false, false), "at the left screen edge");
+        assert_eq!(sq(Some((700.0, 980.0))), (false, false), "between the wings");
+        // no wing, no corner
+        assert_eq!(square_corners(0.0, 2000.0, 2000.0, Some((0.0, 2000.0))), (false, false));
+    }
+
+    #[test]
+    fn only_the_wing_a_panel_hangs_from_on_its_own_screen_changes() {
+        let reg = fixture_registry();
+        let mut s = snap();
+        let lay = |s: &Snapshot| layout(&names(&["spaces"]), &names(&["clickup", "time"]), s, &reg, &env(M, 2000.0));
+        let old = lay(&s);
+        assert!(!old.square_left && !old.square_right);
+        s.panel = Some(Panel { screen: 1, x0: old.right_start.round(), x1: old.right_start.round() + 280.0 });
+        let new = lay(&s);
+        assert!(new.square_right && !new.square_left);
+        assert_eq!((new.changed(Some(&old), Side::Left), new.changed(Some(&old), Side::Right)), (false, true));
+        s.panel = Some(Panel { screen: 2, ..s.panel.unwrap() });
+        assert!(!lay(&s).square_right, "a panel on another screen leaves this bar alone");
     }
 }

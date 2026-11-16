@@ -186,7 +186,9 @@ menu: ---            separator
 ```
 
 An empty line 1 hides the widget. Menu lines turn the widget into a menu that
-opens on click, or on hover with `"menuOn": "hover"`.
+opens on click, or on hover with `"menuOn": "hover"`:
+
+![A script widget's menu, opened by hovering over it](docs/hover-menu.png)
 
 Add the widget with `wingbar widget add script --as NAME --command "…"`, then
 tune it in `config.json`:

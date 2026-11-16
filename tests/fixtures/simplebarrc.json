@@ -1,0 +1,45 @@
+{
+  "global": { "windowManager": "aerospace", "aerospacePath": "/nonexistent/wingbar-fixture/aerospace" },
+  "themes": { "colorRed": "#ff0000", "colorGreen": "#00ff00", "colorMinor": "not-a-colour" },
+  "widgets": { "cpuWidget": false, "musicWidget": true },
+  "cpuWidgetOptions": { "refreshFrequency": 100 },
+  "timeWidgetOptions": { "hour12": true },
+  "spacesDisplay": { "spacesExclusions": "9, scratch ,," },
+  "userWidgets": {
+    "userWidgetsList": {
+      "1": {
+        "active": true,
+        "output": "bash /nonexistent/wingbar-fixture/sbw.sh clickup ok",
+        "backgroundColor": "--green",
+        "icon": "ClickUp",
+        "refreshFrequency": 30000,
+        "onClickAction": "open -a ClickUp"
+      },
+      "2": {
+        "active": true,
+        "output": "bash /nonexistent/wingbar-fixture/sbw.sh clickup warn 60",
+        "backgroundColor": "--red",
+        "icon": "ClickUp",
+        "refreshFrequency": 10000,
+        "onClickAction": "ignored: the group keeps the first variant's clicks"
+      },
+      "3": {
+        "active": true,
+        "output": "echo hello",
+        "backgroundColor": "#123456",
+        "icon": "Terminal",
+        "hideWhenNoOutput": false,
+        "refreshFrequency": 5000
+      },
+      "4": { "active": false, "output": "echo inactive", "icon": "Star" },
+      "10": {
+        "active": true,
+        "output": "bash /nonexistent/wingbar-fixture/sbw.sh salat ok",
+        "backgroundColor": "--blue",
+        "icon": "Moon",
+        "refreshFrequency": 100
+      },
+      "11": { "active": true, "output": "date", "noIcon": true }
+    }
+  }
+}

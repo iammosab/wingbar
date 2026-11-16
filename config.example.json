@@ -1,0 +1,55 @@
+{
+  "version": 2,
+  "// file": "wingbar's settings: ~/.config/wingbar/config.json (or $WINGBAR_CONFIG). Keys starting with // are comments.",
+  "windowManager": "auto",
+  "bar": {
+    "fontSize": null,
+    "titleMaxWidth": 420,
+    "windowLevel": "above",
+    "volumeStep": 5,
+    "port": 7776,
+    "server": true,
+    "hideEmptySpaces": true,
+    "spacesExclusions": [],
+    "popoverBinary": "",
+    "popoverDaemon": "127.0.0.1:7779"
+  },
+  "theme": {
+    "wing": "#000000",
+    "wingHover": "#161618",
+    "text": "#f2f2f2",
+    "dim": "#8e8e93",
+    "faint": "#7c7c82",
+    "warn": "#ff9f45",
+    "alert": "#ff6b7a",
+    "//icons": "sf (SF Symbols) or simple-bar (its icons and its wings theme's, and app icons in the workspaces)",
+    "icons": "sf",
+    "colors": {
+      "green": "#9ed072",
+      "blue": "#76cce0",
+      "red": "#fc5d7c"
+    }
+  },
+  "// wings": "left and right place widgets, in order. A widget defined below but in neither list is hidden (\"network\" here).",
+  "left": ["spaces", "title"],
+  "right": ["cpu", "memory", "battery", "sound", "date", "time"],
+  "widgets": {
+    "spaces": { "type": "spaces" },
+    "title": { "type": "title" },
+    "cpu": { "type": "cpu", "every": "2s", "click": "open -a 'Activity Monitor'" },
+    "memory": { "type": "memory", "every": "4s", "click": "open -a 'Activity Monitor'" },
+    "battery": { "type": "battery", "click": "caffeinate" },
+    "sound": { "type": "sound" },
+    "date": { "type": "date", "click": "open -a Calendar" },
+    "time": { "type": "time", "hour12": false, "seconds": false },
+    "network": {
+      "// what": "A script widget: line 1 of the output is level|label (or just a label). Add \"network\" to \"right\" to show it.",
+      "type": "script",
+      "command": "bash ~/.config/wingbar/widgets/network.sh",
+      "every": "10s",
+      "icon": "network",
+      "levels": { "ok": "green", "eth": { "color": "blue", "icon": "cable.connector" } },
+      "click": "open 'x-apple.systempreferences:com.apple.Network-Settings.extension'"
+    }
+  }
+}

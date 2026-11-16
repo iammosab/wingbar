@@ -95,10 +95,10 @@ jobs:
           cd tap
           sed -i '' \
             -e "s|^  url \".*\"|  url \"https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/wingbar-macos.zip\"|" \
-            -e "s|^  version \".*\"|  version \"${VERSION}\"|" \
             -e "s|^  sha256 \".*\"|  sha256 \"${SHA256}\"|" \
             Formula/wingbar.rb
           git diff
+          if git diff --quiet; then echo "formula already at ${VERSION}"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "wingbar ${VERSION}"

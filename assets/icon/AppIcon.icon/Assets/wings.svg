@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Left Wing (w284, h105, r45, top y=335) -->
+  <path d="M192 335 H476 V395 A45 45 0 0 1 431 440 H192 Z" fill="#FFFFFF"/>
+  <!-- Right Wing (w284, h105, r45, top y=335) -->
+  <path d="M832 335 H548 V395 A45 45 0 0 0 593 440 H832 Z" fill="#FFFFFF"/>
+</svg>

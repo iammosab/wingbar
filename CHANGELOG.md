@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.4.2 — 2026-11-17
+
+### New
+- An app icon: two wings around the notch on titanium black. On macOS 26 it follows
+  the icon style (default, dark and tinted, built from an Icon Composer `.icon`);
+  older macOS gets the same icon as an `.icns`. Built by `scripts/app-icon.sh` into
+  `assets/icon/build/` (committed, so building wingbar needs no Xcode).
+- Brand assets in `assets/brand/`: README headers for light and dark, glyphs, favicon,
+  social preview and the colour palette (`palette.md`, `palette.json`).
 
 ### Fixed
 - macOS asked for Accessibility again after every update: an ad-hoc signature's

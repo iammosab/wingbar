@@ -1,6 +1,6 @@
 [package]
 name = "wingbar"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 rust-version = "1.88"
 description = "A light native macOS status bar: workspaces and script widgets in two wings, managed from the bar"

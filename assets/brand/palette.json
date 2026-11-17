@@ -1,0 +1,225 @@
+{
+  "name": "wingbar Brand Palette",
+  "version": "1.0.0",
+  "description": "Native macOS palette derived from the titanium black app icon and wingbar status bar themes",
+  "colors": {
+    "titanium-950": {
+      "name": "Titanium 950 (Midnight Void)",
+      "hex": "#0A0B0D",
+      "rgb": [
+        10,
+        11,
+        13
+      ],
+      "role": "Dark theme canvas background, deepest surface, squircle base bottom, menu-bar notch"
+    },
+    "titanium-900": {
+      "name": "Titanium 900 (Deep Slate)",
+      "hex": "#14161A",
+      "rgb": [
+        20,
+        22,
+        26
+      ],
+      "role": "Dark theme panel/card background, widget background, dropdown menu surface"
+    },
+    "titanium-800": {
+      "name": "Titanium 800 (Charcoal Horizon)",
+      "hex": "#282C34",
+      "rgb": [
+        40,
+        44,
+        52
+      ],
+      "role": "Squircle base top, elevated widget fill, light theme primary text and glyph fill"
+    },
+    "titanium-600": {
+      "name": "Titanium 600 (Muted Steel)",
+      "hex": "#5A6072",
+      "rgb": [
+        90,
+        96,
+        114
+      ],
+      "role": "Dark theme secondary text, light theme borders, subtle dividers"
+    },
+    "titanium-500": {
+      "name": "Titanium 500 (Cool Slate)",
+      "hex": "#727A91",
+      "rgb": [
+        114,
+        122,
+        145
+      ],
+      "role": "Dark theme muted text, subtle telemetry labels, accessible tertiary text (WCAG 4.6:1 AA on Titanium 950)"
+    },
+    "pearl-200": {
+      "name": "Pearl 200 (Cool Mist)",
+      "hex": "#D5DCE6",
+      "rgb": [
+        213,
+        220,
+        230
+      ],
+      "role": "Dark theme glyph bottom gradient stop, light theme card borders and secondary surface"
+    },
+    "pearl-100": {
+      "name": "Pearl 100 (Pearl White)",
+      "hex": "#F2F5F9",
+      "rgb": [
+        242,
+        245,
+        249
+      ],
+      "role": "Dark theme glyph mid gradient stop, light theme elevated surface fill"
+    },
+    "pearl-50": {
+      "name": "Pearl 50 (Pure Specular)",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "role": "Dark theme primary text and glyph specular highlight, light theme canvas background"
+    },
+    "specular-ice": {
+      "name": "Specular Ice (Rim Blue)",
+      "hex": "#94B7E8",
+      "rgb": [
+        148,
+        183,
+        232
+      ],
+      "role": "Icon specular rim light, active keyboard focus ring, cool accent"
+    },
+    "emerald-active": {
+      "name": "Wing Green (Status Active)",
+      "hex": "#9ED072",
+      "rgb": [
+        158,
+        208,
+        114
+      ],
+      "role": "Dark theme primary brand accent, active workspace/CI passing indicator, online status"
+    },
+    "emerald-accessible": {
+      "name": "Emerald Deep (Light Mode Accent)",
+      "hex": "#2D6B12",
+      "rgb": [
+        45,
+        107,
+        18
+      ],
+      "role": "Light theme primary brand accent, high-contrast text and interactive state"
+    },
+    "cyan-info": {
+      "name": "Terminal Cyan (Status Info)",
+      "hex": "#76CCE0",
+      "rgb": [
+        118,
+        204,
+        224
+      ],
+      "role": "Dark theme secondary accent, network/CPU telemetry indicator"
+    },
+    "cyan-accessible": {
+      "name": "Cyan Deep (Light Mode Info)",
+      "hex": "#12687A",
+      "rgb": [
+        18,
+        104,
+        122
+      ],
+      "role": "Light theme secondary accent, network/CPU telemetry text"
+    }
+  },
+  "mappings": {
+    "dark": {
+      "background": "#0A0B0D",
+      "surface": "#14161A",
+      "surface_elevated": "#282C34",
+      "border": "#282C34",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#D5DCE6",
+      "text_muted": "#727A91",
+      "accent": "#9ED072",
+      "accent_secondary": "#76CCE0",
+      "focus_ring": "#94B7E8"
+    },
+    "light": {
+      "background": "#FFFFFF",
+      "surface": "#F2F5F9",
+      "surface_elevated": "#FFFFFF",
+      "border": "#D5DCE6",
+      "text_primary": "#0A0B0D",
+      "text_secondary": "#282C34",
+      "text_muted": "#5A6072",
+      "accent": "#2D6B12",
+      "accent_secondary": "#12687A",
+      "focus_ring": "#94B7E8"
+    }
+  },
+  "wcag_contrast": {
+    "dark_text_primary": {
+      "fg": "#FFFFFF",
+      "bg": "#0A0B0D",
+      "ratio": "19.69:1",
+      "level": "AAA"
+    },
+    "dark_text_secondary": {
+      "fg": "#D5DCE6",
+      "bg": "#0A0B0D",
+      "ratio": "14.26:1",
+      "level": "AAA"
+    },
+    "dark_text_muted": {
+      "fg": "#727A91",
+      "bg": "#0A0B0D",
+      "ratio": "4.60:1",
+      "level": "AA"
+    },
+    "dark_accent_emerald": {
+      "fg": "#9ED072",
+      "bg": "#0A0B0D",
+      "ratio": "10.99:1",
+      "level": "AAA"
+    },
+    "dark_accent_cyan": {
+      "fg": "#76CCE0",
+      "bg": "#0A0B0D",
+      "ratio": "10.77:1",
+      "level": "AAA"
+    },
+    "light_text_primary": {
+      "fg": "#0A0B0D",
+      "bg": "#FFFFFF",
+      "ratio": "19.69:1",
+      "level": "AAA"
+    },
+    "light_text_secondary": {
+      "fg": "#282C34",
+      "bg": "#FFFFFF",
+      "ratio": "14.00:1",
+      "level": "AAA"
+    },
+    "light_text_muted": {
+      "fg": "#5A6072",
+      "bg": "#FFFFFF",
+      "ratio": "6.27:1",
+      "level": "AA"
+    },
+    "light_accent_emerald": {
+      "fg": "#2D6B12",
+      "bg": "#FFFFFF",
+      "ratio": "6.51:1",
+      "level": "AA"
+    },
+    "light_accent_cyan": {
+      "fg": "#12687A",
+      "bg": "#FFFFFF",
+      "ratio": "6.39:1",
+      "level": "AA"
+    }
+  }
+}

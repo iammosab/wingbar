@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/header-dark.png">
+    <img src="assets/brand/header-light.png" alt="wingbar" width="480">
+  </picture>
+</p>
+
 # wingbar
 
 **A native macOS status bar written in Rust: light enough to forget about, simple enough to configure from the bar itself.**

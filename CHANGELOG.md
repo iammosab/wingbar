@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- macOS asked for Accessibility again after every update: an ad-hoc signature's
+  identity is the hash of the build, so each build counted as a new app.
+  `install.sh` now signs with your Developer ID or Apple Development certificate
+  when the keychain has one (`WINGBAR_SIGN_IDENTITY` picks one, `-` for ad hoc),
+  and the permission stays across updates.
+- Accessibility granted while the bar runs is taken up at once (the window title
+  widget checks again), not at the next start.
+
 ## 0.4.1 — 2026-11-17
 
 ### Fixed

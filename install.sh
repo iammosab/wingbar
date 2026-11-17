@@ -6,6 +6,10 @@
 #   ./install.sh               in a clone: builds from source
 #   ./install.sh --download    in a clone: installs the latest release instead
 #
+# With a code-signing certificate in your keychain (Developer ID or Apple
+# Development) the app is signed with it, so macOS keeps its Accessibility
+# permission across updates. WINGBAR_SIGN_IDENTITY picks one ("-": ad hoc).
+#
 # Safe to run again (also to update). Undo everything with uninstall.sh.
 set -euo pipefail
 
@@ -22,6 +26,17 @@ stop_running() {
   done
   pkill -KILL -f "^$1( |$)" 2>/dev/null || true
   sleep 0.3
+}
+
+# The code-signing identity to sign with: $WINGBAR_SIGN_IDENTITY ("-" for ad hoc,
+# "" for the first Developer ID / Apple Development certificate in the keychain).
+signing_identity() {
+  if [ -n "${WINGBAR_SIGN_IDENTITY+x}" ]; then
+    [ "$WINGBAR_SIGN_IDENTITY" = "-" ] || printf '%s' "$WINGBAR_SIGN_IDENTITY"
+    return
+  fi
+  security find-identity -v -p codesigning 2>/dev/null |
+    awk '/"(Developer ID Application|Apple Development): / { sub(/^[^"]*"/, ""); sub(/".*$/, ""); print; exit }'
 }
 
 main() {
@@ -80,6 +95,19 @@ main() {
     [ -x "$stage/Wingbar.app/Contents/MacOS/wingbar" ] || { echo "the download has no Wingbar.app" >&2; exit 1; }
     # curl doesn't quarantine, but a copy that came through a browser would be
     xattr -dr com.apple.quarantine "$stage/Wingbar.app" 2>/dev/null || true
+  fi
+
+  # A stable signature keeps macOS's Accessibility permission across updates: it
+  # is stored against the app's signing identity, and an ad-hoc signature's
+  # identity is the hash of this very build, so each update would be a new app.
+  local ident
+  ident=$(signing_identity)
+  if [ -n "$ident" ]; then
+    if codesign --force --sign "$ident" "$stage/Wingbar.app" >/dev/null 2>&1; then
+      echo "→ signed with your code-signing certificate (the Accessibility permission will stick across updates)"
+    else
+      echo "→ couldn't sign with \"$ident\"; keeping the ad-hoc signature" >&2
+    fi
   fi
 
   # Stop a running bar first: replacing a running program's file in place makes

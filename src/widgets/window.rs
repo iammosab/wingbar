@@ -36,6 +36,11 @@ impl Widget for Title {
             let s = state::lock();
             (s.front_pid, s.front_name.clone())
         };
+        // Accessibility granted after start (in System Settings): take it up now,
+        // without a restart. AXIsProcessTrusted is an in-process check.
+        if !AX_OK.load(Ordering::Relaxed) && sys::ax_trusted(false) {
+            AX_OK.store(true, Ordering::Relaxed);
+        }
         let t = if AX_OK.load(Ordering::Relaxed) && pid > 0 {
             let w = sys::window_title(pid).unwrap_or_default();
             if w.is_empty() || w == app { app } else { format!("{app} / {w}") }

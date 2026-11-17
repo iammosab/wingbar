@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — 2026-11-17
+
+### Fixed
+- A widget menu that ended up a few points from a wing's end (inside the wing's
+  rounded corner) hung its fillet under the corner's curve, and the corner stayed
+  round. A menu whose edge would land within the corner and its fillet now goes
+  flush with the wing's end, where the corner squares and the two join.
+
 ## 0.4.0 — 2026-11-17
 
 ### New

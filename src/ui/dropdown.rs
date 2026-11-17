@@ -43,11 +43,25 @@ use std::time::{Duration, Instant};
 /// Where the panel body's left edge goes: centred under the widget
 /// (`anchor`, its left and right edge), kept inside `bounds` (the wing), or
 /// inside the screen (`width`) when the wing is narrower than the panel.
-pub fn place(anchor: (f64, f64), w: f64, bounds: (f64, f64), width: f64) -> f64 {
+///
+/// An edge that would land within `reach` of a wing end (the wing's rounded
+/// corner and the panel's fillet) goes flush with it instead: there the
+/// corner squares and the two join; a little further in, the fillet would
+/// hang under the corner's curve.
+pub fn place(anchor: (f64, f64), w: f64, bounds: (f64, f64), width: f64, reach: f64) -> f64 {
     let x = ((anchor.0 + anchor.1) / 2.0 - w / 2.0).round();
-    let (lo, hi) = if bounds.1 - bounds.0 >= w { bounds } else { (8.0, width - 8.0) };
+    if bounds.1 - bounds.0 < w {
+        return x.min(width - 8.0 - w).max(8.0).round();
+    }
+    let (lo, hi) = bounds;
+    let mut x = x.min(hi - w).max(lo);
+    if x - lo < reach {
+        x = lo;
+    } else if hi - (x + w) < reach {
+        x = hi - w;
+    }
     // whole points, so the window sits on whole pixels
-    x.min(hi - w).max(lo).round()
+    x.round()
 }
 
 /// Which top corners get a fillet: a side flush with the end of the wing has
@@ -348,7 +362,7 @@ pub(super) fn show(bar: &BarView, key: &str, menu: Menu, x0: f64, x1: f64, pinne
     let g: Geometry = rich::geometry(&rows, &text_w, &d, x1 - x0);
     let width = bar.frame().size.width;
     let bounds = popover_bounds(x0, x1, iv.wings.get(), width);
-    let x = place((x0, x1), g.w, bounds, width);
+    let x = place((x0, x1), g.w, bounds, width, m.corner + d.fillet);
     let fl = fillets(x, g.w, bounds);
     let left_pad = if fl.0 { d.fillet } else { 0.0 };
     let total_w = g.w + left_pad + if fl.1 { d.fillet } else { 0.0 };
@@ -489,11 +503,21 @@ mod tests {
     fn the_panel_is_centred_under_its_widget_and_stays_in_the_wing() {
         // right wing 1500..2000 of a 2000 pt screen
         let wing = (1500.0, 2000.0);
-        assert_eq!(place((1700.0, 1760.0), 200.0, wing, 2000.0), 1630.0, "centred");
-        assert_eq!(place((1505.0, 1560.0), 200.0, wing, 2000.0), 1500.0, "the wing's first widget: flush");
-        assert_eq!(place((1900.0, 1990.0), 200.0, wing, 2000.0), 1800.0, "the last: flush with the screen edge");
-        assert_eq!(place((1505.0, 1560.0), 600.0, wing, 2000.0), 1233.0, "wider than the wing: kept on screen");
-        assert_eq!(place((2350.0, 2420.0), 200.0, (2344.6, 3360.0), 3360.0), 2345.0, "a fractional wing: whole points");
+        assert_eq!(place((1700.0, 1760.0), 200.0, wing, 2000.0, 0.0), 1630.0, "centred");
+        assert_eq!(place((1505.0, 1560.0), 200.0, wing, 2000.0, 0.0), 1500.0, "the wing's first widget: flush");
+        assert_eq!(place((1900.0, 1990.0), 200.0, wing, 2000.0, 0.0), 1800.0, "the last: flush with the screen edge");
+        assert_eq!(place((1505.0, 1560.0), 600.0, wing, 2000.0, 0.0), 1233.0, "wider than the wing: kept on screen");
+        assert_eq!(
+            place((2350.0, 2420.0), 200.0, (2344.6, 3360.0), 3360.0, 0.0),
+            2345.0,
+            "a fractional wing: whole points"
+        );
+        // near a wing end (within the corner and fillet): flush with it
+        assert_eq!(place((1530.0, 1600.0), 100.0, wing, 2000.0, 29.0), 1500.0, "7 pt in: snaps to the wing's start");
+        assert_eq!(place((1560.0, 1640.0), 100.0, wing, 2000.0, 29.0), 1550.0, "50 pt in: stays");
+        assert_eq!(place((1890.0, 1970.0), 100.0, wing, 2000.0, 29.0), 1900.0, "near the far end: flush with it");
+        assert_eq!(place((100.0, 160.0), 100.0, (0.0, 300.0), 2000.0, 29.0), 80.0, "left wing, mid: stays");
+        assert_eq!(place((240.0, 290.0), 100.0, (0.0, 300.0), 2000.0, 29.0), 200.0, "left wing, near its end: flush");
         assert_eq!(fillets(1630.0, 200.0, wing), (true, true));
         assert_eq!(fillets(1500.0, 200.0, wing), (false, true), "flush with the wing's start");
         assert_eq!(fillets(1800.0, 200.0, wing), (true, false), "flush with its end");
